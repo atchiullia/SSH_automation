@@ -117,4 +117,4 @@ Você pode contribuir com:
 
 ## 🤝 Créditos
 
-Criado com ❤️ por [Giullia]
+Criado com ❤️ por Giullia
