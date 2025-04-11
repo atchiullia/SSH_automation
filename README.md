@@ -118,3 +118,73 @@ Você pode contribuir com:
 ## 🤝 Créditos
 
 Criado com ❤️ por Giullia
+
+
+---
+
+# 🔐 SSH Key Automation Script
+
+This PowerShell script automates the entire setup of SSH keys on Windows. It checks for administrator privileges, installs required OpenSSH components, generates a new SSH key if necessary, adds the private key to the SSH agent, and copies the public key to the clipboard—ready to be added to GitHub.
+
+## 🚀 Features
+
+- Automatically checks for administrator rights and elevates if needed
+- Installs **OpenSSH Client** and **OpenSSH Agent** if not installed
+- Enables and starts the `ssh-agent` service
+- Creates `.ssh` folder if it doesn't exist
+- Checks for existing SSH key pairs
+- Generates an SSH key using the **ed25519** algorithm if no keys are found
+- Adds the private key to the `ssh-agent`
+- Copies the public key to clipboard for quick use on platforms like GitHub
+
+## 📦 How to Use
+
+1. **Open PowerShell as Administrator**
+2. **Run the script:**
+
+   ```powershell
+   .\setup-ssh.ps1
+   ```
+
+3. If you already have SSH keys, it will use them.
+4. If not, it will generate a new one and copy the public key to your clipboard.
+
+## 🔧 Requirements
+
+- Windows 10 or later
+- PowerShell
+- Admin privileges
+- Internet access to install optional components if needed
+
+## 📋 After Setup
+
+Paste your copied public key into your GitHub SSH settings:
+
+👉 https://github.com/settings/keys
+
+## 📁 File Structure
+
+```text
+.
+└── setup-ssh.ps1
+```
+
+## 🤖 Automates:
+
+- Checking admin rights
+- Installing OpenSSH features
+- Running `ssh-keygen`
+- Starting and configuring `ssh-agent`
+- Adding private keys
+- Copying public key
+
+---
+
+🛠 This tool was built to save time and avoid repetitive setup on new systems or virtual machines.
+
+---
+
+## 📜 License
+
+MIT
+
