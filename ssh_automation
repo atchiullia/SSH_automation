@@ -1,0 +1,102 @@
+# verificar se e admin
+function Test-IsAdmin {
+    $currentIdentity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object System.Security.Principal.WindowsPrincipal($currentIdentity)
+    return $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+# verificar se o PS ja foi reiniciado para nao entrar em loop
+# requisito principal: rodar como admin
+if (-not (Test-IsAdmin)) {
+    if (-not $env:SSH_SETUP_ELEVATED) {
+        Write-Host "Elevando para administrador..." -ForegroundColor Yellow
+        $env:SSH_SETUP_ELEVATED = "1"
+        Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -NoExit -Command ⁠ " ⁠$env:SSH_SETUP_ELEVATED='1'; & '$PSCommandPath'`"" -Verb RunAs
+        exit
+    } else {
+        Write-Host "Falha ao elevar script. Execute como administrador manualmente." -ForegroundColor Red
+        exit
+    }
+}
+
+Write-Host "Rodando como administrador. Continuando script" -ForegroundColor Green
+
+
+
+# instalar OpenSSH Client e Agent se nao estiverem instalados
+$features = Get-WindowsCapability -Online | Where-Object Name -like 'OpenSSH*'
+
+foreach ($feature in $features){
+    if ($feature.State -ne 'Installed') {
+        Write-Host "Instalando $($feature.Name)..."
+        Add-WindowsCapability -Online -Name $feature.Name
+    }
+}
+
+# ativar e iniciar o ssh-agent
+Write-Host "Configurando ssh-agent"
+sc.exe config ssh-agent start= auto | Out-Null
+Start-Service ssh-agent -ErrorAction SilentlyContinue
+
+# caminho padrao
+$sshPath = "$env:USERPROFILE\.ssh"
+
+# criar pasta .ssh se nao existir
+if (-not (Test-Path $sshPath)) {
+    New-Item -ItemType Directory -Path $sshPath | Out-Null
+}
+
+# retornar as chaves publicas 
+function Get-PublicKey {
+    param (
+        [string]$sshPath = "$env:USERPROFILE\.ssh"
+    )
+    return Get-ChildItem $sshPath -File | Where-Object{
+        $_.Extension -eq '.pub' -and
+        (Get-Content $_.FullName -First 1) -match "ssh-"
+    }
+}
+
+# retornar as chaves privadas 
+function Get-PrivateKey {
+    param (
+        [string]$sshPath = "$env:USERPROFILE\.ssh"
+    )
+    return Get-ChildItem $sshPath -File | Where-Object{
+        $_.Extension -ne '.pub' -and
+        (Get-Content $_.FullName -First 1) -match "PRIVATE KEY"
+    }
+}
+
+# gerar a chave ssh se nao existir
+$publicKey = Get-PublicKey -sshPath $sshPath
+if (-not $publicKey) {
+    Write-Host "Gerando nova chave SSH"
+    $keyName = "id_ed25519"
+    $privateKeyPath = Join-Path $sshPath $keyName
+    ssh-keygen -t ed25519 -f $privateKeyPath -C "seuemail@email.com" -N '""' | Out-Null
+    $publicKey = Get-PublicKey -sshPath $sshPath
+} else {
+    Write-Host "Chave SSH ja existe: $($publickey[0].Name)"
+}
+
+# adicionar chave privada ao agente
+$privateKey = Get-PrivateKey -sshPath $sshPath
+foreach ($key in $privateKey){
+    Write-Host "Adicionando chave ao ssh-agent: $($key.Name)"
+    ssh-add $key.FullName | Out-Null
+}
+
+# copiar chave publica para a area de transferencia
+if ($publicKey.Count -gt 0) {
+    Get-Content $publicKey[0].FullName | Set-Clipboard
+    Write-Host "`nChave publica copiada para a area de transferencia."
+    Write-Host "Cole no GitHub a sua nova chave SSH"
+    Write-Host "https://github.com/settings/keys"
+} else {
+    Write-Host "Chave publica nao encontrada."
+}
+
+# confirmar saida
+Write-Host "`nConfiguracao concluida. Pressione Enter para sair."
+Read-Host
